@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import React, { useState } from 'react';
 import { 
+  Bars3Icon,
   PaperClipIcon, 
   MicrophoneIcon, 
   PaperAirplaneIcon, 
@@ -12,28 +13,24 @@ import {
   QuestionMarkCircleIcon, 
   CompassIcon 
 } from '@heroicons/react/24/outline';
+import Sidebar from "./components/Sidebar";
 
 export default function SecuritySOCDesk() {
   const [message, setMessage] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+      <Sidebar isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}/>
       
       {/* TOP NAVIGATION BAR */}
       <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-50">
         {/* Left Logo Section */}
-        <div className="flex items-center gap-2 cursor-pointer group">
-          <svg 
-            className="w-7 h-7 text-slate-700 group-hover:text-blue-600 transition-colors" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          ></svg>
-          
-        </div>
+        <button
+  onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-slate-100 transition">
+  <Bars3Icon className="w-7 h-7 text-slate-700" />
+</button>
 
         {/* Center Navigation Toggle */}
         <div className="bg-slate-100 p-1 rounded-full flex items-center shadow-inner">
@@ -48,10 +45,10 @@ export default function SecuritySOCDesk() {
         {/* Right User Profile */}
         <div className="flex items-center gap-3 cursor-pointer group">
           <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm ring-2 ring-transparent group-hover:ring-blue-100 transition-all">
-            JD
+            LT
           </div>
           <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors hidden sm:inline">
-            John Doe
+            Lawal Tumininu
           </span>
         </div>
       </header>
