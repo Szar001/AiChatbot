@@ -52,7 +52,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </Link>
 
           <Link
-            href="#"
+            href="/requests" onClick={() => setIsOpen(false)}
             className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800"
           >
             <ShieldCheckIcon className="w-5 h-5" />
@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </Link>
 
           <Link
-            href="#"
+            href="/serviceteams"
             className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800"
           >
             <FolderIcon className="w-5 h-5" />
@@ -68,7 +68,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </Link>
 
           <Link
-            href="#"
+            href="/servicedesk"
             className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800"
           >
             <UserCircleIcon className="w-5 h-5" />
@@ -76,14 +76,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </Link>
 
           <Link
-            href="#"
+            href="/grcmanagement"
             className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800"
           >
             <Cog6ToothIcon className="w-5 h-5" />
             GRC Management
           </Link>
           <Link
-            href="#"
+            href="/grcquery"
             className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800"
           >
             <Cog6ToothIcon className="w-5 h-5" />
