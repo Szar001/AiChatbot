@@ -1,0 +1,34 @@
+[
+  {
+    "vendor_id": "VEN-001",
+    "name": "Firewall License",
+    "vendor_name": "Fortinet",
+    "expiry_date": "2026-07-10",
+    "annual_cost": 18000.0,
+    "sla_breaches": 0
+  },
+  {
+    "vendor_id": "VEN-002",
+    "name": "SIEM Platform",
+    "vendor_name": "Splunk",
+    "expiry_date": "2026-08-12",
+    "annual_cost": 65000.0,
+    "sla_breaches": 1
+  },
+  {
+    "vendor_id": "VEN-003",
+    "name": "EDR Solution",
+    "vendor_name": "CrowdStrike",
+    "expiry_date": "2026-10-26",
+    "annual_cost": 42000.0,
+    "sla_breaches": 0
+  },
+  {
+    "vendor_id": "VEN-004",
+    "name": "WAF License",
+    "vendor_name": "Cloudflare",
+    "expiry_date": "2026-07-06",
+    "annual_cost": 12000.0,
+    "sla_breaches": 2
+  }
+]

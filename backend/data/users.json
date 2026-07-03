@@ -1,0 +1,51 @@
+[
+  {
+    "id": "u1",
+    "name": "John Doe",
+    "email": "user@sterlingtrust.com",
+    "role": "user",
+    "password_hash": "scrypt:32768:8:1$zpGJLRkDweRQ7odT$722f76bfc12c99c3af2a78e14f42ebf801c02be0b191e2fdd377af2c7df1ddd9fd7865188fb59c24d382dfd2e755ef55bfca57596e0fac315ad9a9fedf9ce8d7"
+  },
+  {
+    "id": "u2",
+    "name": "Funmi Bello",
+    "email": "servicedesk@sterlingtrust.com",
+    "role": "service_desk_officer",
+    "password_hash": "scrypt:32768:8:1$SQoQ3IACxydrQn2t$f2c71928b83f0acd4e6dc199df88a0e607bd7d96bdf26ee87ce3d698d6e27f0c743efd166048ce3c70fe07864d464c94b718a0e9bbee4cf14a404e17404f62b7"
+  },
+  {
+    "id": "u3",
+    "name": "Michael Torres",
+    "email": "governance@sterlingtrust.com",
+    "role": "governance",
+    "password_hash": "scrypt:32768:8:1$0z9HLYW02zuhSza8$9b58e1abd25ed99d071d87bfbe52d5ee349997ade9d2d604f4b6d5e0f08b223d19d8dab384c500ef781fa77c739690f88e7ef80e0d8138b6f8bd0632b2c94b95"
+  },
+  {
+    "id": "u4",
+    "name": "Emma Wilson",
+    "email": "defense@sterlingtrust.com",
+    "role": "defense",
+    "password_hash": "scrypt:32768:8:1$kwOBboCK2w9x5D8e$e8488eb0ccf1cdb8a79fae51753481dfbde0f5b8ade568bb1f1c1bb95038128c2193ffcb914712c52837d46bd031526f0b69b8f2a39befa0c2f8832886ba38e1"
+  },
+  {
+    "id": "u5",
+    "name": "Sarah Chen",
+    "email": "attack@sterlingtrust.com",
+    "role": "attack_security",
+    "password_hash": "scrypt:32768:8:1$QcjiWnpqkFapDwgn$d55ae73793cc3e7689896a19058c0cb45c0494047fce935f9c9a9031c30be9a5005864f0527d1ef3847386fcbb921052578e52df5c72342de4d93722d43f5e26"
+  },
+  {
+    "id": "u6",
+    "name": "David Okafor",
+    "email": "auditor@sterlingtrust.com",
+    "role": "auditor",
+    "password_hash": "scrypt:32768:8:1$F0mN8kO6xekTwMpc$f2854a022f5dba235ea6579b8c760913a3cbca3e1f5734a758ba4942415e3cbdd44c7c098164da6fed9dbdc695dc5161fa856df5d0644d38758eacc434df89d6"
+  },
+  {
+    "id": "u7",
+    "name": "Lawal Tumininu",
+    "email": "ciso@sterlingtrust.com",
+    "role": "ciso",
+    "password_hash": "scrypt:32768:8:1$OqdRYHjVzmcNTHuQ$12cde8cc45b1fbc4ceab97836297d06854bcf05b6dfc34df1b2beefeaf0eaedd1f2f1afa438c2fb7f2264e3feb9d453ce0e0943e82932d751ac22251dab089fc"
+  }
+]
