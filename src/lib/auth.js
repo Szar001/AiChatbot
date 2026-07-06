@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-export const API_BASE_URL = "http://127.0.0.1:5000";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5000";
 
 const TOKEN_KEY = "stb_token";
 const USER_KEY = "stb_user";
