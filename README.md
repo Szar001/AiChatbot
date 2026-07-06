@@ -9,7 +9,7 @@ there are **no external API calls** — the assistant reasons only over the
 organisation's own data.
 
 - **Principal Investigator:** Lawal Oluwatumininu Abdulrauf
-- **Supervisor:** Prof. K. Moses Aregbesola
+- **Supervisor:** Prof. Moses K. Aregbesola
 - **Institution:** Caleb University — Department of Cyber Security
 
 ---
