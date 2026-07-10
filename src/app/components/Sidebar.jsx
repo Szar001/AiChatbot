@@ -11,6 +11,10 @@ import {
   Cog6ToothIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
+  ChartBarIcon,
+  BookOpenIcon,
+  CalendarDaysIcon,
+  AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
 import { getUser, clearSession, PAGE_ACCESS, ROLE_LABELS } from "../../lib/auth";
 
@@ -21,6 +25,10 @@ const NAV_ITEMS = [
   { href: "/servicedesk", label: "Service Desk", icon: UserCircleIcon },
   { href: "/grcmanagement", label: "GRC Management", icon: Cog6ToothIcon },
   { href: "/grcquery", label: "GRC Query", icon: Cog6ToothIcon },
+  { href: "/securityposture", label: "Security Posture", icon: ChartBarIcon },
+  { href: "/exploitplaybook", label: "Exploit Playbook", icon: BookOpenIcon },
+  { href: "/pentestscheduler", label: "Pentest Scheduler", icon: CalendarDaysIcon },
+  { href: "/slaconfig", label: "SLA Config", icon: AdjustmentsHorizontalIcon },
 ];
 
 export default function Sidebar({ isOpen, setIsOpen }) {

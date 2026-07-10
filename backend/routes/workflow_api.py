@@ -7,9 +7,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, current_app, jsonify, request
 
 from engine.access import CATEGORY_TO_ROLE, PRACTITIONER_ROLES
+from engine.action_script import ACTIVE_THREAT_CATEGORIES, generate_action_script
 from engine.audit_log import get_audit_log_store
 from engine.auth import login_required, roles_required
+from engine.exploit_playbook import get_exploit_playbook_store
 from engine.life_doc import get_life_doc_store
+from engine.mailer import draft_life_doc_email, send_mail
 from engine.ticket_store import get_ticket_store
 from engine.vendor_monitor import get_vendor_monitor
 
@@ -64,11 +67,17 @@ def approve_resolution():
         return jsonify({"error": "This ticket belongs to a different team."}), 403
 
     reviewer = user["name"]
+
+    # AI drafts the requester-facing email now; a team member must approve it
+    # (POST /tickets/<id>/send-life-doc-email) before it actually sends.
+    email_draft = draft_life_doc_email(ticket, resolution_text)
+
     ticket_store.update(ticket_id, {
         "status": "CLOSED",
         "resolution_text": resolution_text,
         "approved": True,
         "reviewer": reviewer,
+        "pending_life_doc_email": email_draft,
     })
 
     life_doc_store = get_life_doc_store(current_app.config["LIFE_DOC_DB_PATH"])
@@ -80,6 +89,17 @@ def approve_resolution():
         reviewer=reviewer,
     )
 
+    if ticket.get("category") in ACTIVE_THREAT_CATEGORIES:
+        playbook_store = get_exploit_playbook_store(current_app.config["EXPLOIT_PLAYBOOK_DB_PATH"])
+        script = generate_action_script(ticket.get("category"), ticket.get("mitre_tags", []), ticket_id)
+        if script:
+            playbook_store.add_entry(
+                ticket_id=ticket_id,
+                mitre_tags=ticket.get("mitre_tags", []),
+                title=script["title"],
+                test_notes=resolution_text,
+            )
+
     audit_log = get_audit_log_store(current_app.config["AUDIT_LOG_DB_PATH"])
     audit_log.record(
         actor=user,
@@ -89,7 +109,49 @@ def approve_resolution():
         summary=f"Resolved ticket {ticket_id} ({ticket.get('category', 'Unclassified')})",
     )
 
-    return jsonify({"life_document": record}), 201
+    return jsonify({"life_document": record, "pending_life_doc_email": email_draft}), 201
+
+
+@workflow_bp.route("/tickets/<ticket_id>/send-life-doc-email", methods=["POST"])
+@roles_required(*PRACTITIONER_AND_CISO)
+def send_life_doc_email(ticket_id):
+    """
+    Sends the AI-drafted life document email back to the requester once a
+    team member has reviewed and approved the draft produced at resolution
+    time. Never sends automatically without this explicit approval step.
+    """
+    ticket_store = get_ticket_store(current_app.config["TICKET_STORE_PATH"])
+    ticket = ticket_store.get(ticket_id)
+    if ticket is None:
+        return jsonify({"error": f"Ticket {ticket_id} not found."}), 404
+
+    draft = ticket.get("pending_life_doc_email")
+    if not draft:
+        return jsonify({"error": "No pending life document email for this ticket."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    subject = payload.get("subject", draft["subject"])
+    body = payload.get("body", draft["body"])
+
+    submitter_id = ticket.get("submitted_by_id")
+    from engine.user_store import get_user_store
+    user_store = get_user_store(current_app.config["USER_STORE_PATH"])
+    requester = user_store.get_by_id(submitter_id) if submitter_id else None
+    if not requester or not requester.get("email"):
+        return jsonify({"error": "Could not resolve the requester's email address."}), 400
+
+    result = send_mail(current_app.config, requester["email"], subject, body)
+    ticket_store.update(ticket_id, {"pending_life_doc_email": None, "life_doc_email_sent": result})
+
+    audit_log = get_audit_log_store(current_app.config["AUDIT_LOG_DB_PATH"])
+    audit_log.record(
+        actor=request.current_user,
+        action_type="life_doc_email_sent",
+        ticket_id=ticket_id,
+        summary=f"Approved and sent life document email for {ticket_id} to {requester['email']}",
+    )
+
+    return jsonify({"result": result}), 200
 
 
 @workflow_bp.route("/life-doc/<ticket_id>", methods=["GET"])
@@ -186,6 +248,52 @@ def renew_budget():
     if budget is None:
         return jsonify({"error": "No budget term to renew. Set a budget with an expiry date first."}), 400
     return jsonify({"budget": budget}), 200
+
+
+@workflow_bp.route("/budget/items", methods=["POST"])
+@roles_required("service_desk_officer", "ciso")
+def add_budget_item():
+    """Adds an ad-hoc budgeted line item (e.g. Food, Cybersecurity Awareness)
+    and debits it from the budget balance."""
+    payload = request.get_json(silent=True) or {}
+    category = (payload.get("category") or "").strip()
+    description = (payload.get("description") or "").strip()
+    amount = payload.get("amount")
+
+    if not category or amount is None:
+        return jsonify({"error": "Fields 'category' and 'amount' are required."}), 400
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Field 'amount' must be a number."}), 400
+
+    monitor = get_vendor_monitor(current_app.config["VENDOR_STORE_PATH"])
+    budget = monitor.add_budget_item(category, description, amount)
+    return jsonify({"budget": budget}), 201
+
+
+@workflow_bp.route("/vendors", methods=["POST"])
+@roles_required("service_desk_officer", "ciso")
+def add_license():
+    """Adds a new license/vendor and debits its annual cost from the budget
+    balance as a License Tracking item."""
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    vendor_name = (payload.get("vendor_name") or "").strip()
+    expiry_date = payload.get("expiry_date")
+    annual_cost = payload.get("annual_cost")
+
+    if not name or not vendor_name or not expiry_date or annual_cost is None:
+        return jsonify({"error": "Fields 'name', 'vendor_name', 'expiry_date', 'annual_cost' are required."}), 400
+    try:
+        datetime.strptime(expiry_date, "%Y-%m-%d")
+        annual_cost = float(annual_cost)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid 'expiry_date' (YYYY-MM-DD) or 'annual_cost'."}), 400
+
+    monitor = get_vendor_monitor(current_app.config["VENDOR_STORE_PATH"])
+    vendor = monitor.add_license(name, vendor_name, expiry_date, annual_cost)
+    return jsonify({"vendor": vendor, "budget": monitor.get_budget()}), 201
 
 
 @workflow_bp.route("/vendors/<vendor_id>/draft-email", methods=["POST"])

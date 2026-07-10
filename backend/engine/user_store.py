@@ -41,14 +41,17 @@ class UserStore:
         self.store_path = store_path
         if not os.path.exists(self.store_path):
             seeded = [
-                {**u, "password_hash": generate_password_hash(DEMO_PASSWORD)}
+                {**u, "is_internal": True, "password_hash": generate_password_hash(DEMO_PASSWORD)}
                 for u in SEED_USERS
             ]
             self._write_all(seeded)
 
     def _read_all(self) -> list:
         with open(self.store_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            users = json.load(f)
+        for u in users:
+            u.setdefault("is_internal", True)
+        return users
 
     def _write_all(self, users: list):
         with open(self.store_path, "w", encoding="utf-8") as f:
@@ -69,6 +72,26 @@ class UserStore:
             if u["id"] == user_id:
                 return {k: v for k, v in u.items() if k != "password_hash"}
         return None
+
+    def list_all(self) -> list:
+        with _lock:
+            users = self._read_all()
+        return [{k: v for k, v in u.items() if k != "password_hash"} for u in users]
+
+    def update(self, user_id: str, updates: dict) -> dict | None:
+        with _lock:
+            users = self._read_all()
+            found = None
+            for u in users:
+                if u["id"] == user_id:
+                    if "is_internal" in updates:
+                        u["is_internal"] = bool(updates["is_internal"])
+                    found = u
+                    break
+            if found is None:
+                return None
+            self._write_all(users)
+        return {k: v for k, v in found.items() if k != "password_hash"}
 
 
 _store_instance = None

@@ -19,8 +19,18 @@ class Config:
     POLICY_STORE_PATH = os.path.join(DATA_DIR, "policies.json")
     USER_STORE_PATH = os.path.join(DATA_DIR, "users.json")
     AUDIT_LOG_DB_PATH = os.path.join(DATA_DIR, "audit_log.sqlite3")
+    TELEMETRY_STORE_PATH = os.path.join(DATA_DIR, "telemetry.json")
+    SLA_CONFIG_STORE_PATH = os.path.join(DATA_DIR, "sla_config.json")
+    EXPLOIT_PLAYBOOK_DB_PATH = os.path.join(DATA_DIR, "exploit_playbook.sqlite3")
+    PENTEST_SCHEDULE_STORE_PATH = os.path.join(DATA_DIR, "pentest_schedule.json")
 
     TICKET_CLASSIFIER_CONFIDENCE_THRESHOLD = 0.55
+
+    SMTP_HOST = os.environ.get("SMTP_HOST")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USER = os.environ.get("SMTP_USER")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "grc-desk@sterlingtrust.com")
 
     _default_origins = [
         "http://localhost:3000",

@@ -1,6 +1,26 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { authFetch } from "./auth";
+
+/**
+ * Uploads a pre-recorded audio file to the backend for transcription, as an
+ * alternative to live microphone dictation. Returns the transcribed text, or
+ * throws with a user-facing message if transcription isn't available.
+ */
+export async function transcribeAudioFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await authFetch("/api/v1/speech/transcribe", {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || "Transcription failed.");
+  }
+  return data.text;
+}
 
 /**
  * Web Speech API dictation hook.

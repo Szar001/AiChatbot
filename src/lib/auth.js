@@ -27,6 +27,10 @@ export const PAGE_ACCESS = {
   "/servicedesk": ["service_desk_officer", "ciso"],
   "/grcmanagement": ["governance", "ciso"],
   "/grcquery": ["governance", "auditor", "ciso"],
+  "/slaconfig": ["service_desk_officer", "ciso"],
+  "/securityposture": ["ciso", "auditor", "governance", "defense", "attack_security"],
+  "/exploitplaybook": ["attack_security", "defense", "ciso"],
+  "/pentestscheduler": ["attack_security", "ciso"],
 };
 
 export function getDefaultPageForRole(role) {

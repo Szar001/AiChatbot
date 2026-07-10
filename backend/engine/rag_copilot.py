@@ -146,13 +146,14 @@ class GRCCoPilot:
     def __init__(self, uploaded_policies: list = None):
         self.uploaded_policies = uploaded_policies or []
 
-    def register_uploaded_policy(self, filename: str, text: str):
+    def register_uploaded_policy(self, filename: str, text: str, is_test_data: bool = False):
         for chunk in chunk_text(text):
             self.uploaded_policies.append({
                 "source": filename,
                 "clause": "Uploaded Policy",
                 "text": chunk,
                 "framework": "uploaded",
+                "is_test_data": is_test_data,
             })
 
     def _corpus(self, framework: str = "all") -> list:
@@ -161,14 +162,20 @@ class GRCCoPilot:
             corpus = [c for c in corpus if c["framework"] == framework or c["framework"] == "uploaded"]
         return corpus
 
-    def detect_gaps(self, coverage_threshold: float = 0.12) -> list:
+    def detect_gaps(self, coverage_threshold: float = 0.12, include_test_data: bool = True) -> list:
         """
         For each baseline regulatory clause, checks whether any uploaded policy
         chunk substantively covers it (cosine similarity above threshold). Any
         baseline clause without adequate coverage is flagged as an AI-detected
         compliance gap for the GRC Management dashboard.
+
+        `include_test_data=False` excludes fake/sample policies uploaded to
+        exercise the scoreboard from a real compliance-gap calculation.
         """
-        if not self.uploaded_policies:
+        pool = self.uploaded_policies if include_test_data else [
+            p for p in self.uploaded_policies if not p.get("is_test_data")
+        ]
+        if not pool:
             return [
                 {
                     "source": clause["source"],
@@ -181,7 +188,7 @@ class GRCCoPilot:
                 for clause in BASELINE_CLAUSES
             ]
 
-        policy_texts = [p["text"] for p in self.uploaded_policies]
+        policy_texts = [p["text"] for p in pool]
         baseline_texts = [c["text"] for c in BASELINE_CLAUSES]
         vectorizer = TfidfVectorizer(lowercase=True, stop_words="english", ngram_range=(1, 2))
         matrix = vectorizer.fit_transform(baseline_texts + policy_texts)
@@ -202,6 +209,21 @@ class GRCCoPilot:
                 "covered": best_score >= coverage_threshold,
             })
         return gaps
+
+    def compliance_score(self, coverage_threshold: float = 0.12) -> dict:
+        """Rolls detect_gaps() up into a single compliance scoreboard score:
+        percentage of baseline regulatory clauses adequately covered by the
+        organisation's uploaded (non-test) policies."""
+        gaps = self.detect_gaps(coverage_threshold=coverage_threshold, include_test_data=False)
+        total = len(gaps)
+        covered = sum(1 for g in gaps if g["covered"])
+        uncovered = total - covered
+        return {
+            "score_pct": round((covered / total) * 100, 1) if total else 0.0,
+            "covered": covered,
+            "uncovered": uncovered,
+            "total": total,
+        }
 
     def query(self, question: str, framework: str = "all", top_k: int = 5) -> list:
         corpus = self._corpus(framework)

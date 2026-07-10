@@ -20,19 +20,13 @@ const STATUS_COLORS = {
   Failed: "text-red-600 bg-red-50 border-red-100",
 };
 
-const SAMPLE_SCOREBOARD = [
-  { name: "ISO 27001", controls: "142/163", score: 87, status: "Compliant", color: "bg-emerald-500" },
-  { name: "GDPR", controls: "78/85", score: 92, status: "Compliant", color: "bg-emerald-500" },
-  { name: "SOC 2 Type II", controls: "89/120", score: 74, status: "Partial", color: "bg-amber-500" },
-  { name: "NIST CSF", controls: "56/82", score: 68, status: "Partial", color: "bg-amber-500" },
-];
-
 export default function GRCManagementPage() {
   const { user, checked } = useAuthGuard();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = React.useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [uploadAsTestData, setUploadAsTestData] = useState(false);
 
   const [recentlyUploaded, setRecentlyUploaded] = useState([]);
   const [isLoadingPolicies, setIsLoadingPolicies] = useState(true);
@@ -40,6 +34,21 @@ export default function GRCManagementPage() {
   const [gapData, setGapData] = useState(null);
   const [isLoadingGaps, setIsLoadingGaps] = useState(true);
   const [gapsError, setGapsError] = useState(null);
+
+  const [scoreboard, setScoreboard] = useState(null);
+  const [scoreboardError, setScoreboardError] = useState(null);
+
+  const fetchScoreboard = useCallback(async () => {
+    try {
+      const response = await authFetch("/api/v1/compliance-scoreboard");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load compliance scoreboard.");
+      setScoreboard(data.scoreboard);
+      setScoreboardError(null);
+    } catch (err) {
+      setScoreboardError(err.message);
+    }
+  }, []);
 
   const fetchPolicies = useCallback(async () => {
     try {
@@ -75,8 +84,8 @@ export default function GRCManagementPage() {
     // fetchPolicies/fetchGaps only set state after their internal `await` resolves; this is a
     // standard data-fetch-on-mount effect, not a synchronous setState call.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (checked) { fetchPolicies(); fetchGaps(); }
-  }, [checked, fetchPolicies, fetchGaps]);
+    if (checked) { fetchPolicies(); fetchGaps(); fetchScoreboard(); }
+  }, [checked, fetchPolicies, fetchGaps, fetchScoreboard]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -90,6 +99,7 @@ export default function GRCManagementPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("is_test_data", uploadAsTestData ? "true" : "false");
 
       const response = await authFetch("/api/v1/upload-policy", {
         method: "POST",
@@ -106,6 +116,7 @@ export default function GRCManagementPage() {
       setIsUploading(false);
       fetchPolicies();
       fetchGaps();
+      fetchScoreboard();
     }
   };
 
@@ -188,6 +199,17 @@ export default function GRCManagementPage() {
               or drag and drop
             </p>
             <p className="text-slate-500 text-sm mt-1 font-medium uppercase tracking-wide">PDF, DOCX up to 50MB</p>
+            <label
+              onClick={(e) => e.stopPropagation()}
+              className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500"
+            >
+              <input
+                type="checkbox"
+                checked={uploadAsTestData}
+                onChange={(e) => setUploadAsTestData(e.target.checked)}
+              />
+              Upload as test/fake policy (exercises the scoreboard, excluded from real compliance scoring)
+            </label>
             {uploadError && (
               <p className="text-red-600 text-sm mt-2 font-semibold">{uploadError}</p>
             )}
@@ -237,42 +259,38 @@ export default function GRCManagementPage() {
             <h2 className="text-xl font-bold text-slate-900">Compliance Scoreboard</h2>
           </div>
           <p className="text-slate-400 text-xs mb-6">
-            Illustrative sample scoring — automated control-by-control scoring against uploaded policies is not yet implemented.
+            Live score: percentage of baseline NDPA 2023 / CBN Risk-Based Cybersecurity Framework clauses
+            adequately covered by your uploaded (non-test) policies.
           </p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 opacity-60">
-            {SAMPLE_SCOREBOARD.map((item, idx) => (
-              <div key={idx} className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900">{item.name}</h3>
-                    <p className="text-slate-500 font-medium text-base mt-1">Controls: {item.controls}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-4xl font-black text-slate-900 tracking-tight">{item.score}%</div>
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-xs font-bold ${
-                      item.status === "Compliant" ? "text-emerald-600 bg-emerald-50 border-emerald-100" : "text-amber-600 bg-amber-50 border-amber-100"
-                    }`}>
-                      {item.status === "Compliant" ? (
-                        <CheckCircleIcon className="w-3 h-3" />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      )}
-                      {item.status}
-                    </div>
-                  </div>
+          {scoreboardError && <p className="text-sm text-red-600 font-semibold">{scoreboardError}</p>}
+          {scoreboard && (
+            <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm max-w-md">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900">Overall Compliance</h3>
+                  <p className="text-slate-500 font-medium text-base mt-1">
+                    {scoreboard.covered}/{scoreboard.total} clauses covered
+                  </p>
                 </div>
-
-                {/* Progress Bar Container */}
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    className={`${item.color} h-full rounded-full transition-all duration-1000`}
-                    style={{ width: `${item.score}%` }}
-                  />
+                <div className="text-right">
+                  <div className="text-4xl font-black text-slate-900 tracking-tight">{scoreboard.score_pct}%</div>
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-xs font-bold ${
+                    scoreboard.score_pct >= 80 ? "text-emerald-600 bg-emerald-50 border-emerald-100" : "text-amber-600 bg-amber-50 border-amber-100"
+                  }`}>
+                    {scoreboard.score_pct >= 80 ? <CheckCircleIcon className="w-3 h-3" /> : <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                    {scoreboard.score_pct >= 80 ? "Compliant" : "Partial"}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <div
+                  className={`${scoreboard.score_pct >= 80 ? "bg-emerald-500" : "bg-amber-500"} h-full rounded-full transition-all duration-1000`}
+                  style={{ width: `${scoreboard.score_pct}%` }}
+                />
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 3. AI-DETECTED COMPLIANCE GAPS SECTION */}

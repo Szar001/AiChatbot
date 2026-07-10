@@ -35,6 +35,8 @@ def upload_policy():
     if not _allowed_file(uploaded_file.filename, allowed_extensions):
         return jsonify({"error": f"Unsupported file type. Allowed: {sorted(allowed_extensions)}"}), 400
 
+    is_test_data = (request.form.get("is_test_data") or "").lower() in ("1", "true", "yes")
+
     safe_name = secure_filename(uploaded_file.filename)
     unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], unique_name)
@@ -49,6 +51,7 @@ def upload_policy():
         "uploaded_at": uploaded_at,
         "status": "Processing",
         "extracted_characters": 0,
+        "is_test_data": is_test_data,
     }
     policy_store.add(record)
 
@@ -63,7 +66,7 @@ def upload_policy():
         }), 500
 
     copilot = get_copilot()
-    copilot.register_uploaded_policy(safe_name, extracted_text)
+    copilot.register_uploaded_policy(safe_name, extracted_text, is_test_data=is_test_data)
 
     policy_store.update(unique_name, {
         "status": "Processed",
@@ -76,6 +79,7 @@ def upload_policy():
         "status": "Processed",
         "extracted_characters": len(extracted_text),
         "uploaded_at": uploaded_at,
+        "is_test_data": is_test_data,
     }), 201
 
 
@@ -132,6 +136,20 @@ def grc_gaps():
         "covered_count": len(gaps) - len(uncovered),
         "total_clauses": len(gaps),
     }), 200
+
+
+@grc_bp.route("/compliance-scoreboard", methods=["GET"])
+@roles_required("governance", "ciso", "auditor")
+def compliance_scoreboard():
+    """
+    Compliance Scoreboard: rolls up AI-detected coverage of baseline NDPA/CBN
+    clauses (excluding any test/fake policies) into a single score, so
+    uploading a real policy document moves the scoreboard rather than the
+    gap list alone.
+    """
+    copilot = get_copilot()
+    score = copilot.compliance_score()
+    return jsonify({"scoreboard": score}), 200
 
 
 @grc_bp.route("/grc-query/history", methods=["GET"])

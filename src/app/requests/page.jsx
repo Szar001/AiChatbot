@@ -183,11 +183,25 @@ export default function RequestsPage() {
                         Escalated to Humans
                       </span>
                     )}
+                    {req.urgency && (
+                      <span className={`px-2 py-1 text-[10px] font-bold rounded-md tracking-wide text-center whitespace-nowrap ${
+                        req.urgency === "Critical" ? "bg-red-600 text-white"
+                        : req.urgency === "High" ? "bg-amber-500 text-white"
+                        : "bg-slate-200 text-slate-700"
+                      }`}>
+                        {req.incident_type ? `${req.incident_type} — ` : ""}{req.urgency}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
                     <ClockIcon className="w-5 h-5 text-slate-400" />
                     <span>{elapsedSince(req.created_at)}</span>
+                    {req.sla_deadline && req.status !== "CLOSED" && (
+                      <span className="text-[11px] text-slate-400">
+                        · SLA due {new Date(req.sla_deadline).toLocaleString()}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-slate-700 font-medium">

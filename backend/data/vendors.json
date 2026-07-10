@@ -30,5 +30,13 @@
     "expiry_date": "2026-07-06",
     "annual_cost": 12000.0,
     "sla_breaches": 2
+  },
+  {
+    "vendor_id": "VEN-E3FE8B",
+    "name": "New AV",
+    "vendor_name": "Acme",
+    "expiry_date": "2027-01-01",
+    "annual_cost": 5000.0,
+    "sla_breaches": 0
   }
 ]

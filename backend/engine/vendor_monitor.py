@@ -6,7 +6,8 @@ templates when action is required.
 import json
 import os
 import threading
-from datetime import datetime, date, timedelta
+import uuid
+from datetime import datetime, date, timedelta, timezone
 
 _lock = threading.Lock()
 
@@ -55,6 +56,9 @@ DEFAULT_BUDGET = {
     # Length of the budget period in days, captured when the budget is set, so
     # "Renew" can reset the countdown to a fresh full term.
     "term_days": None,
+    # Individual budget line items so "spent" is broken down by what the money
+    # was actually for (License Tracking, Food, Cybersecurity Awareness, ...).
+    "items": [],
 }
 
 SLA_BREACH_THRESHOLD = 1
@@ -111,6 +115,7 @@ class VendorMonitor:
             "expired": days_left is not None and days_left < 0,
             "active": bool(budget.get("active", False)),
             "term_days": budget.get("term_days"),
+            "items": budget.get("items", []),
         }
 
     def get_budget(self) -> dict:
@@ -150,6 +155,44 @@ class VendorMonitor:
             budget["active"] = True
             self._write_budget(budget)
         return self._enrich_budget(budget)
+
+    def add_budget_item(self, category: str, description: str, amount: float) -> dict:
+        """Adds an ad-hoc budgeted line item and debits it from the balance
+        by increasing 'spent'. `category` describes what the money is for
+        (e.g. License Tracking, Food, Cybersecurity Awareness)."""
+        with _lock:
+            budget = self._read_budget()
+            item = {
+                "id": f"BI-{uuid.uuid4().hex[:8].upper()}",
+                "category": category,
+                "description": description,
+                "amount": float(amount),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            items = budget.get("items", [])
+            items.append(item)
+            budget["items"] = items
+            budget["spent"] = float(budget.get("spent") or 0) + float(amount)
+            self._write_budget(budget)
+        return self._enrich_budget(budget)
+
+    def add_license(self, name: str, vendor_name: str, expiry_date: str, annual_cost: float) -> dict:
+        """Adds a new license/vendor entry and debits its cost from the
+        budget balance as a 'License Tracking' budget item."""
+        with _lock:
+            vendors = self._read_all()
+            vendor = {
+                "vendor_id": f"VEN-{uuid.uuid4().hex[:6].upper()}",
+                "name": name,
+                "vendor_name": vendor_name,
+                "expiry_date": expiry_date,
+                "annual_cost": float(annual_cost),
+                "sla_breaches": 0,
+            }
+            vendors.append(vendor)
+            self._write_all(vendors)
+        self.add_budget_item("License Tracking", f"{name} ({vendor_name})", annual_cost)
+        return vendor
 
     def get_dashboard(self) -> dict:
         with _lock:

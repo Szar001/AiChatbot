@@ -12,6 +12,11 @@ from config import Config
 from routes.auth_api import auth_bp
 from routes.chat_api import chat_bp
 from routes.grc_api import grc_bp
+from routes.pentest_api import pentest_bp
+from routes.playbook_api import playbook_bp
+from routes.posture_api import posture_bp
+from routes.sla_api import sla_bp
+from routes.speech_api import speech_bp
 from routes.tickets_api import tickets_bp
 from routes.workflow_api import workflow_bp
 
@@ -27,6 +32,11 @@ def create_app() -> Flask:
     app.register_blueprint(tickets_bp)
     app.register_blueprint(grc_bp)
     app.register_blueprint(workflow_bp)
+    app.register_blueprint(posture_bp)
+    app.register_blueprint(playbook_bp)
+    app.register_blueprint(pentest_bp)
+    app.register_blueprint(sla_bp)
+    app.register_blueprint(speech_bp)
 
     @app.route("/api/v1/health", methods=["GET"])
     def health_check():

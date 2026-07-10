@@ -84,6 +84,16 @@ export default function ServiceDeskDashboard() {
   const [openTickets, setOpenTickets] = useState([]);
   const [ticketsError, setTicketsError] = useState(null);
 
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [itemForm, setItemForm] = useState({ category: "License Tracking", description: "", amount: "" });
+  const [isSavingItem, setIsSavingItem] = useState(false);
+  const [itemError, setItemError] = useState(null);
+
+  const [showLicenseForm, setShowLicenseForm] = useState(false);
+  const [licenseForm, setLicenseForm] = useState({ name: "", vendor_name: "", expiry_date: "", annual_cost: "" });
+  const [isSavingLicense, setIsSavingLicense] = useState(false);
+  const [licenseError, setLicenseError] = useState(null);
+
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showTeamHistory, setShowTeamHistory] = useState(false);
   const [teamHistory, setTeamHistory] = useState([]);
@@ -262,6 +272,69 @@ export default function ServiceDeskDashboard() {
     }
   };
 
+  const saveBudgetItem = async () => {
+    if (!itemForm.category || !itemForm.amount) {
+      setItemError("Category and amount are required.");
+      return;
+    }
+    setIsSavingItem(true);
+    setItemError(null);
+    try {
+      const response = await authFetch("/api/v1/budget/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: itemForm.category,
+          description: itemForm.description,
+          amount: parseFloat(itemForm.amount),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to add budget item.");
+      setVendorData((prev) => ({ ...(prev || {}), budget: data.budget }));
+      setItemForm({ category: "License Tracking", description: "", amount: "" });
+      setShowItemForm(false);
+    } catch (err) {
+      setItemError(err.message);
+    } finally {
+      setIsSavingItem(false);
+    }
+  };
+
+  const saveLicense = async () => {
+    if (!licenseForm.name || !licenseForm.vendor_name || !licenseForm.expiry_date || !licenseForm.annual_cost) {
+      setLicenseError("All license fields are required.");
+      return;
+    }
+    setIsSavingLicense(true);
+    setLicenseError(null);
+    try {
+      const response = await authFetch("/api/v1/vendors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: licenseForm.name,
+          vendor_name: licenseForm.vendor_name,
+          expiry_date: licenseForm.expiry_date,
+          annual_cost: parseFloat(licenseForm.annual_cost),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to add license.");
+      setVendorData((prev) => ({
+        ...(prev || {}),
+        budget: data.budget,
+        vendors: [...(prev?.vendors || []), data.vendor],
+      }));
+      setLicenseForm({ name: "", vendor_name: "", expiry_date: "", annual_cost: "" });
+      setShowLicenseForm(false);
+    } catch (err) {
+      setLicenseError(err.message);
+    } finally {
+      setIsSavingLicense(false);
+    }
+  };
+
   const handleToggleTeamHistory = async () => {
     setShowTeamHistory((prev) => !prev);
     if (teamHistory.length > 0 || teamHistoryError) return;
@@ -347,9 +420,13 @@ export default function ServiceDeskDashboard() {
                   <h4 className="font-bold text-slate-800 text-[15px]">
                     {ticket.clean_text?.slice(0, 60)}{ticket.clean_text?.length > 60 ? "…" : ""}
                   </h4>
-                  {ticket.category === "Attack Security" && (
-                    <span className="text-[10px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded tracking-wide uppercase">
-                      Critical
+                  {ticket.urgency && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-wide uppercase border ${
+                      ticket.urgency === "Critical" ? "text-red-700 bg-red-50 border-red-100"
+                      : ticket.urgency === "High" ? "text-amber-700 bg-amber-50 border-amber-100"
+                      : "text-slate-600 bg-slate-50 border-slate-100"
+                    }`}>
+                      {ticket.incident_type ? `${ticket.incident_type} • ` : ""}{ticket.urgency}
                     </span>
                   )}
                 </div>
@@ -574,6 +651,63 @@ export default function ServiceDeskDashboard() {
                       </button>
                     )}
                   </div>
+
+                  {/* Budget line items ledger */}
+                  <div className="pt-2 mt-1 border-t border-emerald-100 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Budget Items</p>
+                      <button
+                        onClick={() => setShowItemForm((p) => !p)}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700"
+                      >
+                        {showItemForm ? "Cancel" : "+ Add Item"}
+                      </button>
+                    </div>
+                    {showItemForm && (
+                      <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                        <select
+                          value={itemForm.category}
+                          onChange={(e) => setItemForm((p) => ({ ...p, category: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                        >
+                          <option>License Tracking</option>
+                          <option>Food</option>
+                          <option>Cybersecurity Awareness</option>
+                          <option>Other</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={itemForm.description}
+                          onChange={(e) => setItemForm((p) => ({ ...p, description: e.target.value }))}
+                          placeholder="Description"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                        />
+                        <input
+                          type="number"
+                          value={itemForm.amount}
+                          onChange={(e) => setItemForm((p) => ({ ...p, amount: e.target.value }))}
+                          placeholder="Amount ($)"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                        />
+                        {itemError && <p className="text-red-600 text-[11px] font-semibold">{itemError}</p>}
+                        <button
+                          onClick={saveBudgetItem}
+                          disabled={isSavingItem}
+                          className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md disabled:opacity-50"
+                        >
+                          {isSavingItem ? "Saving..." : "Save Item"}
+                        </button>
+                      </div>
+                    )}
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {(vendorData.budget.items || []).slice().reverse().map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-[11px] text-emerald-800">
+                          <span>{item.category}{item.description ? ` — ${item.description}` : ""}</span>
+                          <span className="font-bold">${item.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -679,9 +813,57 @@ export default function ServiceDeskDashboard() {
             
             {/* License Notification Queue Layout */}
             <div className="border border-slate-200 bg-white rounded-2xl p-6 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-800 font-bold text-[15px]">
-                📅 <span>License Expirations</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-[15px]">
+                  📅 <span>License Expirations</span>
+                </div>
+                <button
+                  onClick={() => setShowLicenseForm((p) => !p)}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700"
+                >
+                  {showLicenseForm ? "Cancel" : "+ Add License"}
+                </button>
               </div>
+
+              {showLicenseForm && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                  <input
+                    type="text"
+                    value={licenseForm.name}
+                    onChange={(e) => setLicenseForm((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="License name (e.g. EDR Solution)"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={licenseForm.vendor_name}
+                    onChange={(e) => setLicenseForm((p) => ({ ...p, vendor_name: e.target.value }))}
+                    placeholder="Vendor name"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                  <input
+                    type="date"
+                    value={licenseForm.expiry_date}
+                    onChange={(e) => setLicenseForm((p) => ({ ...p, expiry_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                  <input
+                    type="number"
+                    value={licenseForm.annual_cost}
+                    onChange={(e) => setLicenseForm((p) => ({ ...p, annual_cost: e.target.value }))}
+                    placeholder="Annual cost ($)"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                  {licenseError && <p className="text-red-600 text-xs font-semibold">{licenseError}</p>}
+                  <button
+                    onClick={saveLicense}
+                    disabled={isSavingLicense}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg disabled:opacity-50"
+                  >
+                    {isSavingLicense ? "Adding..." : "Add License (debits budget)"}
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {vendorError && (

@@ -21,9 +21,13 @@ from engine.auth import login_required
 from engine.chat_orchestrator import build_grounded_answer, classify_intent
 from engine.life_doc import get_life_doc_store
 from engine.log_parser import parse_ticket
+from engine.pii_filter import redact
 from engine.rag_copilot import get_copilot
+from engine.sla_config import get_sla_config_store
+from engine.telemetry import get_telemetry_store
 from engine.ticket_classifier import get_classifier
 from engine.ticket_store import get_ticket_store
+from engine.triage import infer_incident
 
 chat_bp = Blueprint("chat_api", __name__, url_prefix="/api/v1")
 
@@ -45,10 +49,14 @@ def chat():
         results = copilot.query(text)
         answer = build_grounded_answer(text, results)
 
+        logged_text, redaction_count = redact(text)
+        if redaction_count:
+            get_telemetry_store(current_app.config["TELEMETRY_STORE_PATH"]).increment("redactions", redaction_count)
+
         audit_log.record(
             actor=user,
             action_type="chat_query",
-            query_text=text,
+            query_text=logged_text,
             summary=f"Policy question answered with {len(results)} citation(s)",
         )
 
@@ -59,17 +67,29 @@ def chat():
         }), 200
 
     # --- Incident / request path ---
+    text, redaction_count = redact(text)
+    if redaction_count:
+        get_telemetry_store(current_app.config["TELEMETRY_STORE_PATH"]).increment("redactions", redaction_count)
+
     ticket = parse_ticket(text, submitted_by=user["name"])
     ticket["submitted_by_id"] = user["id"]
 
     classifier = get_classifier()
     classification = classifier.classify(ticket["clean_text"])
+    incident = infer_incident(ticket["clean_text"], classification["label"])
+
+    sla_store = get_sla_config_store(current_app.config["SLA_CONFIG_STORE_PATH"])
+    staff_type = "internal" if user.get("is_internal", True) else "external"
+    deadline = sla_store.compute_deadline(incident["urgency"], staff_type, ticket["created_at"])
 
     ticket.update({
         "category": classification["label"],
         "confidence": classification["confidence"],
         "needs_human_review": classification["needs_human_review"],
         "classification_scores": classification["scores"],
+        "incident_type": incident["incident_type"],
+        "urgency": incident["urgency"],
+        "sla_deadline": deadline,
         "status": "PENDING_REVIEW" if classification["needs_human_review"] else "ONGOING",
         "resolution_text": None,
         "approved": False,
@@ -87,6 +107,17 @@ def chat():
         category=ticket["category"],
         ticket_id=ticket["ticket_id"],
         summary=f"Submitted ticket {ticket['ticket_id']} ({ticket['category']}) via chat",
+    )
+    audit_log.record(
+        actor=user,
+        action_type="auto_triage",
+        category=ticket["category"],
+        ticket_id=ticket["ticket_id"],
+        summary=(
+            f"Auto-tagged {incident['incident_type'] or ticket['category']} -> "
+            f"{ticket['category']} stream, urgency {incident['urgency']}, SLA deadline {deadline}"
+        ),
+        actor_type="system",
     )
 
     life_doc_store = get_life_doc_store(current_app.config["LIFE_DOC_DB_PATH"])

@@ -28,6 +28,9 @@ export default function Serviceteams() {
   const [isApproving, setIsApproving] = useState(false);
   const [approveError, setApproveError] = useState(null);
   const [approvedDocument, setApprovedDocument] = useState(null);
+  const [pendingEmail, setPendingEmail] = useState(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSendResult, setEmailSendResult] = useState(null);
 
   const [incomingQueue, setIncomingQueue] = useState([]);
   const [isLoadingQueue, setIsLoadingQueue] = useState(true);
@@ -155,11 +158,33 @@ export default function Serviceteams() {
       }
 
       setApprovedDocument(data.life_document);
+      setPendingEmail(data.pending_life_doc_email);
+      setEmailSendResult(null);
       fetchQueue();
     } catch (err) {
       setApproveError(err.message);
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  const handleSendLifeDocEmail = async () => {
+    if (!approvedDocument) return;
+    setIsSendingEmail(true);
+    try {
+      const response = await authFetch(`/api/v1/tickets/${approvedDocument.ticket_id}/send-life-doc-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingEmail || {}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to send email.");
+      setEmailSendResult(data.result);
+      setPendingEmail(null);
+    } catch (err) {
+      setEmailSendResult({ error: err.message });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -346,6 +371,28 @@ export default function Serviceteams() {
                     </div>
                   )}
                 </div>
+                {pendingEmail && (
+                  <div className="border border-blue-200 bg-blue-50/40 rounded-xl p-5 space-y-2">
+                    <h3 className="font-bold text-blue-900 text-sm">AI-Drafted Life Document Email — Pending Approval</h3>
+                    <p className="text-xs text-blue-700 font-bold">{pendingEmail.subject}</p>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{pendingEmail.body}</p>
+                    <button
+                      onClick={handleSendLifeDocEmail}
+                      disabled={isSendingEmail}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
+                    >
+                      {isSendingEmail ? "Sending..." : "Approve & Send to Requester"}
+                    </button>
+                  </div>
+                )}
+                {emailSendResult && !emailSendResult.error && (
+                  <p className="text-xs text-emerald-700 font-semibold">
+                    Email {emailSendResult.mode === "smtp" ? "sent" : "logged (no SMTP configured)"} to {emailSendResult.to}.
+                  </p>
+                )}
+                {emailSendResult?.error && (
+                  <p className="text-xs text-red-600 font-semibold">{emailSendResult.error}</p>
+                )}
                 <button
                   onClick={() => handleSelectIncident(null)}
                   className="text-sm font-bold text-slate-600 hover:text-blue-600"
