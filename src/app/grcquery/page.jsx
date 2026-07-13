@@ -124,19 +124,13 @@ export default function GRCQueryPage() {
             <Bars3Icon className="w-6 h-6 text-slate-700" />
           </button>
         </div>
-
         <HeaderTabs />
-
-<<<<<<< HEAD
-        
-=======
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
             {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
           </div>
           <span className="text-base font-semibold text-slate-700 hidden sm:inline">{user.name}</span>
         </div>
->>>>>>> b3c8535f7b4ed28f1e2ed6e4ed8c91e481fb7da1
       </header>
 
       {/* INDEPENDENTLY SCROLLABLE WORKSPACE LAYOUT */}
