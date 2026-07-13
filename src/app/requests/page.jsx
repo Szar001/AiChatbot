@@ -109,15 +109,12 @@ export default function RequestsPage() {
 
         <HeaderTabs />
 
-<<<<<<< HEAD
-       
-=======
+      
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm">
             {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
           </div>
         </div>
->>>>>>> b3c8535f7b4ed28f1e2ed6e4ed8c91e481fb7da1
       </header>
 
       {/* CORE REQUESTS CONTENT CONTENT */}
