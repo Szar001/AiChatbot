@@ -672,7 +672,7 @@ export default function ServiceDeskDashboard() {
                         <select
                           value={itemForm.category}
                           onChange={(e) => setItemForm((p) => ({ ...p, category: e.target.value }))}
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs bg-white text-slate-900 placeholder-slate-400"
                         >
                           <option>License Tracking</option>
                           <option>Food</option>
@@ -684,14 +684,14 @@ export default function ServiceDeskDashboard() {
                           value={itemForm.description}
                           onChange={(e) => setItemForm((p) => ({ ...p, description: e.target.value }))}
                           placeholder="Description"
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs bg-white text-slate-900 placeholder-slate-400"
                         />
                         <input
                           type="number"
                           value={itemForm.amount}
                           onChange={(e) => setItemForm((p) => ({ ...p, amount: e.target.value }))}
                           placeholder="Amount ($)"
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs bg-white text-slate-900 placeholder-slate-400"
                         />
                         {itemError && <p className="text-red-600 text-[11px] font-semibold">{itemError}</p>}
                         <button

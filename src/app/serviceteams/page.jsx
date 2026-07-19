@@ -495,7 +495,7 @@ export default function Serviceteams() {
                       onChange={(e) => setFootprintAction(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleLogFootprint()}
                       placeholder="e.g. Running Nessus vulnerability sweep..."
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-900 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={footprintSpeech.isListening ? footprintSpeech.stopListening : footprintSpeech.startListening}

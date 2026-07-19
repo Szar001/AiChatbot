@@ -106,7 +106,7 @@ export default function SLAConfigPage() {
                           type="number"
                           defaultValue={config[staffType]?.[urgency]}
                           onBlur={(e) => e.target.value && updateHours(staffType, urgency, e.target.value)}
-                          className="w-20 px-2 py-1 border border-slate-200 rounded-md text-sm text-right"
+                          className="w-20 px-2 py-1 border border-slate-200 rounded-md text-sm text-right bg-white text-slate-900"
                         />
                         <span className="text-xs text-slate-400">hrs</span>
                         {saving === `${staffType}-${urgency}` && <span className="text-xs text-blue-500">saving…</span>}
