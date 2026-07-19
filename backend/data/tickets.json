@@ -237,5 +237,37 @@
       "to": "attack@sterlingtrust.com",
       "subject": "Update on your request REQ-B8CB1007 \u2014 Resolved"
     }
+  },
+  {
+    "ticket_id": "REQ-297A19BB",
+    "raw_text": "hello",
+    "clean_text": "hello",
+    "submitted_by": "Lawal Tumininu",
+    "created_at": "2026-07-19T22:26:36.100111+00:00",
+    "entities": {
+      "ip_addresses": [],
+      "emails": [],
+      "cves": []
+    },
+    "mitre_tags": [],
+    "word_count": 1,
+    "submitted_by_id": "u7",
+    "category": "Defence",
+    "confidence": 0.3461,
+    "needs_human_review": true,
+    "classification_scores": {
+      "Attack Security": 0.3304,
+      "Defence": 0.3461,
+      "Governance": 0.3236
+    },
+    "incident_type": null,
+    "urgency": "Medium",
+    "sla_deadline": "2026-07-22T22:26:36.100111+00:00",
+    "status": "PENDING_REVIEW",
+    "resolution_text": null,
+    "approved": false,
+    "triage_footprint": [],
+    "nudges": [],
+    "user_notified": false
   }
 ]

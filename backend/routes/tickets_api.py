@@ -132,6 +132,35 @@ def get_ticket(ticket_id):
     return jsonify({"ticket": ticket}), 200
 
 
+@tickets_bp.route("/tickets/<ticket_id>", methods=["DELETE"])
+@roles_required("service_desk_officer", "ciso")
+def delete_ticket(ticket_id):
+    """
+    Soft-deletes a request/ticket: it is flagged and hidden from normal
+    listings but never removed from disk, and the action is audited.
+    Restricted to Service Desk Officers and the CISO.
+    """
+    store = get_ticket_store(current_app.config["TICKET_STORE_PATH"])
+    ticket = store.get(ticket_id)
+    if ticket is None:
+        return jsonify({"error": f"Ticket {ticket_id} not found."}), 404
+
+    user = request.current_user
+    deleted_at = datetime.now(timezone.utc).isoformat()
+    updated = store.soft_delete(ticket_id, user, deleted_at)
+
+    audit_log = get_audit_log_store(current_app.config["AUDIT_LOG_DB_PATH"])
+    audit_log.record(
+        actor=user,
+        action_type="ticket_deleted",
+        category=ticket.get("category"),
+        ticket_id=ticket_id,
+        summary=f"Soft-deleted ticket {ticket_id} ({ticket.get('category', 'Unclassified')})",
+    )
+
+    return jsonify({"ticket": updated}), 200
+
+
 @tickets_bp.route("/tickets/<ticket_id>/footprint", methods=["POST"])
 @roles_required(*PRACTITIONER_AND_CISO)
 def add_footprint_entry(ticket_id):

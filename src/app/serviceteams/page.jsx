@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import HeaderTabs from '../components/HeaderTabs';
 import { authFetch, useAuthGuard } from '../../lib/auth';
 import { useSpeechToText } from '../../lib/speech';
+import { formatUtcPlus1 } from '../../lib/time';
 
 const TEAM_BY_CATEGORY = {
   "Attack Security": "Attack Security",
@@ -31,6 +32,10 @@ export default function Serviceteams() {
   const [pendingEmail, setPendingEmail] = useState(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSendResult, setEmailSendResult] = useState(null);
+  const [isUpdatingLifeDoc, setIsUpdatingLifeDoc] = useState(false);
+  const [lifeDocUpdateError, setLifeDocUpdateError] = useState(null);
+  const [lifeDocUpdated, setLifeDocUpdated] = useState(false);
+  const [lifeDocRecord, setLifeDocRecord] = useState(null);
 
   const [incomingQueue, setIncomingQueue] = useState([]);
   const [isLoadingQueue, setIsLoadingQueue] = useState(true);
@@ -90,6 +95,9 @@ export default function Serviceteams() {
     setApprovedDocument(null);
     setFootprintAction("");
     setFootprintError(null);
+    setLifeDocUpdated(false);
+    setLifeDocUpdateError(null);
+    setLifeDocRecord(null);
   };
 
   const handleLogFootprint = async () => {
@@ -157,14 +165,38 @@ export default function Serviceteams() {
         throw new Error(data.error || "Failed to approve resolution.");
       }
 
-      setApprovedDocument(data.life_document);
+      setApprovedDocument(data.approved_resolution);
       setPendingEmail(data.pending_life_doc_email);
       setEmailSendResult(null);
+      setLifeDocUpdated(false);
+      setLifeDocUpdateError(null);
+      setLifeDocRecord(null);
       fetchQueue();
     } catch (err) {
       setApproveError(err.message);
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  const handleUpdateLifeDoc = async () => {
+    if (!approvedDocument) return;
+    setIsUpdatingLifeDoc(true);
+    setLifeDocUpdateError(null);
+    try {
+      const response = await authFetch(`/api/v1/tickets/${approvedDocument.ticket_id}/update-life-doc`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update life document.");
+      }
+      setLifeDocRecord(data.life_document);
+      setLifeDocUpdated(true);
+    } catch (err) {
+      setLifeDocUpdateError(err.message);
+    } finally {
+      setIsUpdatingLifeDoc(false);
     }
   };
 
@@ -331,7 +363,7 @@ export default function Serviceteams() {
                     <p className="text-xs font-semibold text-slate-400 tracking-wider">{doc.ticket_id}</p>
                     <p className="text-sm text-slate-700 mt-1 leading-relaxed">{doc.resolution_text}</p>
                     <p className="text-xs text-slate-400 mt-1.5">
-                      Approved by {doc.reviewer} on {new Date(doc.approved_at).toLocaleString()}
+                      Approved by {doc.reviewer} on {formatUtcPlus1(doc.approved_at)}
                     </p>
                     {doc.mitre_tags?.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -358,17 +390,40 @@ export default function Serviceteams() {
             ) : approvedDocument ? (
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="border border-emerald-200 bg-emerald-50/40 rounded-xl p-5 space-y-2">
-                  <h3 className="font-bold text-emerald-900 text-sm">Resolution Approved &amp; Life Document Updated</h3>
+                  <h3 className="font-bold text-emerald-900 text-sm">Resolution Approved</h3>
                   <p className="text-xs text-emerald-700">Ticket {approvedDocument.ticket_id} closed by {approvedDocument.reviewer}.</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{approvedDocument.resolution_text}</p>
-                  {approvedDocument.mitre_tags?.length > 0 && (
+                </div>
+
+                <div className={`border rounded-xl p-5 space-y-2 ${lifeDocUpdated ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    {lifeDocUpdated ? "Life Document Updated" : "Update Life Document"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {lifeDocUpdated
+                      ? "This is a distinct, audited step from the resolution approval above."
+                      : "Approval alone does not update the Life Document — confirm this separately."}
+                  </p>
+                  {lifeDocRecord?.mitre_tags?.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {approvedDocument.mitre_tags.map((tag) => (
+                      {lifeDocRecord.mitre_tags.map((tag) => (
                         <span key={tag} className="px-2.5 py-1 bg-purple-50 border border-purple-100 text-purple-700 rounded-md text-xs font-semibold">
                           {tag}
                         </span>
                       ))}
                     </div>
+                  )}
+                  {lifeDocUpdateError && (
+                    <p className="text-red-600 text-xs font-semibold">{lifeDocUpdateError}</p>
+                  )}
+                  {!lifeDocUpdated && (
+                    <button
+                      onClick={handleUpdateLifeDoc}
+                      disabled={isUpdatingLifeDoc}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
+                    >
+                      {isUpdatingLifeDoc ? "Updating..." : "Update Life Document"}
+                    </button>
                   )}
                 </div>
                 {pendingEmail && (
@@ -427,7 +482,7 @@ export default function Serviceteams() {
                     {selectedIncident.triage_footprint?.map((entry, idx) => (
                       <p key={idx} className="text-xs text-slate-600">
                         <span className="font-mono text-slate-400">
-                          [{new Date(entry.timestamp).toISOString().slice(11, 16)} UTC]
+                          [{formatUtcPlus1(entry.timestamp)}]
                         </span>{" "}
                         <span className="font-semibold text-slate-700">{entry.actor}</span> {entry.action}
                       </p>
@@ -500,7 +555,7 @@ export default function Serviceteams() {
                   disabled={isApproving || !resolutionText.trim()}
                   className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isApproving ? "Approving..." : "Approve Resolution & Update Life Document"}
+                  {isApproving ? "Approving..." : "Approve Resolution"}
                 </button>
               </div>
             )}

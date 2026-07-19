@@ -1,23 +1,101 @@
 "use client"
-import Image from "next/image";
 
-import React, { useState } from 'react';
-import { 
+import React, { useState, useRef, useEffect } from 'react';
+import {
   Bars3Icon,
-  PaperClipIcon, 
-  MicrophoneIcon, 
-  PaperAirplaneIcon, 
-  PhotoIcon, 
-  FolderIcon, 
-  SpeakerWaveIcon, 
-  QuestionMarkCircleIcon, 
-  CompassIcon 
+  PaperClipIcon,
+  MicrophoneIcon,
+  PaperAirplaneIcon,
+  PhotoIcon,
+  FolderIcon,
+  SpeakerWaveIcon,
+  QuestionMarkCircleIcon,
+  CompassIcon
 } from '@heroicons/react/24/outline';
 import Sidebar from "./components/Sidebar";
+import { useSpeechToText, transcribeAudioFile } from "../lib/speech";
+import { sendChatMessage, loadChatHistory, saveChatHistory } from "../lib/chat";
+
+// No timestamp here: it's computed client-side only (see mount effect below) so
+// server and client renders don't disagree and trigger a hydration mismatch.
+const WELCOME_MESSAGE = {
+  role: "assistant",
+  text: "Welcome to the Autonomous Cybersecurity Operations Center Desk. I'm here to assist you with security operations, threat analysis, and incident response. How can I help you today?",
+  timestamp: null,
+};
+
+function formatTime(isoTimestamp) {
+  if (!isoTimestamp) return "";
+  return new Date(isoTimestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
 
 export default function SecuritySOCDesk() {
   const [message, setMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
+  const audioInputRef = useRef(null);
+
+  useEffect(() => {
+    // Reads localStorage on mount; not a synchronous derived-state update.
+    const stored = loadChatHistory();
+    if (stored.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMessages(stored);
+    } else {
+      setMessages([{ ...WELCOME_MESSAGE, timestamp: new Date().toISOString() }]);
+    }
+  }, []);
+
+  useEffect(() => {
+    saveChatHistory(messages);
+  }, [messages]);
+
+  const speech = useSpeechToText((transcript) =>
+    setMessage((prev) => (prev ? `${prev} ${transcript}` : transcript))
+  );
+
+  const handleSend = async (e) => {
+    e?.preventDefault();
+    const text = message.trim();
+    if (!text || isSending) return;
+
+    const userMessage = { role: "user", text, timestamp: new Date().toISOString() };
+    setMessages((prev) => [...prev, userMessage]);
+    setMessage('');
+    setIsSending(true);
+    setSendError(null);
+    try {
+      const reply = await sendChatMessage(text);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: reply, timestamp: new Date().toISOString() },
+      ]);
+    } catch (err) {
+      setSendError(err.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleAudioFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setIsSending(true);
+    setSendError(null);
+    try {
+      const transcript = await transcribeAudioFile(file);
+      if (transcript) {
+        setMessage((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      }
+    } catch (err) {
+      setSendError(err.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col antialiased selection:bg-blue-500 selection:text-white">
@@ -71,31 +149,52 @@ export default function SecuritySOCDesk() {
 
           {/* Chat Bubble Area */}
           <div className="flex-1 p-6 space-y-6 overflow-y-auto bg-white">
-            <div className="flex items-start gap-4 max-w-3xl">
-              {/* Bot Avatar */}
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm">
-                AI
-              </div>
-              
-              {/* Message Content */}
-              <div className="flex flex-col gap-1.5">
-                <div className="bg-slate-50 text-slate-800 text-sm sm:text-[15px] leading-relaxed p-4 rounded-2xl rounded-tl-sm border border-slate-100 shadow-sm">
-                  Welcome to the Autonomous Cybersecurity Operations Center Desk. I'm here to assist you with security operations, threat analysis, and incident response. How can I help you today?
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex items-start gap-4 max-w-3xl ${msg.role === "user" ? "ml-auto flex-row-reverse" : ""}`}
+              >
+                {/* Avatar */}
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${
+                    msg.role === "user" ? "bg-slate-700 text-white" : "bg-blue-600 text-white"
+                  }`}
+                >
+                  {msg.role === "user" ? "You" : "AI"}
                 </div>
-                <span className="text-[11px] text-slate-400 font-medium pl-1">
-                  09:24:05
-                </span>
+
+                {/* Message Content */}
+                <div className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : ""}`}>
+                  <div
+                    className={`text-sm sm:text-[15px] leading-relaxed p-4 rounded-2xl shadow-sm ${
+                      msg.role === "user"
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-sm"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium pl-1">
+                    {formatTime(msg.timestamp)}
+                  </span>
+                </div>
               </div>
-            </div>
+            ))}
+            {isSending && (
+              <p className="text-xs text-slate-400 font-medium pl-12">AI is thinking…</p>
+            )}
+            {sendError && (
+              <p className="text-xs text-red-600 font-semibold pl-12">{sendError}</p>
+            )}
           </div>
 
           {/* Chat Inputs & Action Footer */}
-          <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex flex-col gap-3">
-            
+          <form onSubmit={handleSend} className="border-t border-slate-100 p-4 bg-slate-50/50 flex flex-col gap-3">
+
             {/* Input Row */}
             <div className="flex items-center gap-3 w-full max-w-4xl mx-auto">
               {/* Attachment Button */}
-              <button className="p-3 bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-slate-700 transition-all shadow-sm active:scale-95 flex-shrink-0">
+              <button type="button" className="p-3 bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-slate-700 transition-all shadow-sm active:scale-95 flex-shrink-0">
                 <PaperClipIcon className="w-5 h-5" />
               </button>
 
@@ -111,33 +210,64 @@ export default function SecuritySOCDesk() {
               </div>
 
               {/* Voice Button */}
-              <button className="p-3 bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-slate-700 transition-all shadow-sm active:scale-95 flex-shrink-0">
+              <button
+                type="button"
+                onClick={speech.isListening ? speech.stopListening : speech.startListening}
+                disabled={!speech.isSupported}
+                title={speech.isSupported ? "Speak your message" : "Speech-to-text not supported in this browser"}
+                className={`p-3 rounded-full border transition-all shadow-sm active:scale-95 flex-shrink-0 ${
+                  speech.isListening
+                    ? "bg-red-500 border-red-500 text-white animate-pulse"
+                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                } disabled:opacity-50`}
+              >
                 <MicrophoneIcon className="w-5 h-5" />
               </button>
 
               {/* Send Button */}
-              <button className="p-3 bg-blue-600 hover:bg-blue-700 rounded-full text-white transition-all shadow-md hover:shadow-blue-200 active:scale-95 flex-shrink-0">
+              <button
+                type="submit"
+                disabled={!message.trim() || isSending}
+                className="p-3 bg-blue-600 hover:bg-blue-700 rounded-full text-white transition-all shadow-md hover:shadow-blue-200 active:scale-95 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <PaperAirplaneIcon className="w-5 h-5 -rotate-45 relative left-[1px] bottom-[1px]" />
               </button>
             </div>
 
+            {speech.error && (
+              <p className="text-xs text-red-600 font-semibold text-center">{speech.error}</p>
+            )}
+
+            <input
+              ref={audioInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={handleAudioFileSelected}
+            />
+
             {/* Media/File Metadata Shortcuts */}
             <div className="flex items-center justify-center gap-6 text-slate-500 text-xs font-medium py-1">
-              <button className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+              <button type="button" className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
                 <PhotoIcon className="w-4 h-4 text-slate-400" />
                 Images
               </button>
-              <button className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+              <button type="button" className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
                 <FolderIcon className="w-4 h-4 text-slate-400" />
                 Folders
               </button>
-              <button className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+              <button
+                type="button"
+                onClick={() => audioInputRef.current?.click()}
+                disabled={isSending}
+                className="flex items-center gap-1.5 hover:text-slate-800 transition-colors disabled:opacity-50"
+              >
                 <SpeakerWaveIcon className="w-4 h-4 text-slate-400" />
                 Audio
               </button>
             </div>
 
-          </div>
+          </form>
         </div>
       </main>
 

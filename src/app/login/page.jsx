@@ -48,7 +48,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Sterling Trust Bank Plc</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Cyber Security Management Systems</h1>
           <p className="text-slate-500 text-sm mt-1">AI Automated Tech Support Desk</p>
         </div>
 

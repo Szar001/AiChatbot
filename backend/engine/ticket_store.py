@@ -33,9 +33,12 @@ class TicketStore:
             self._write_all(tickets)
         return ticket
 
-    def list_all(self) -> list:
+    def list_all(self, include_deleted: bool = False) -> list:
         with _lock:
-            return self._read_all()
+            tickets = self._read_all()
+        if include_deleted:
+            return tickets
+        return [t for t in tickets if not t.get("deleted")]
 
     def get(self, ticket_id: str) -> dict | None:
         with _lock:
@@ -57,6 +60,16 @@ class TicketStore:
             if updated is not None:
                 self._write_all(tickets)
         return updated
+
+    def soft_delete(self, ticket_id: str, deleted_by: dict, deleted_at: str) -> dict | None:
+        """Marks a ticket as deleted without removing its record, so it drops
+        out of normal listings but remains recoverable/auditable."""
+        return self.update(ticket_id, {
+            "deleted": True,
+            "deleted_by": deleted_by.get("name"),
+            "deleted_by_id": deleted_by.get("id"),
+            "deleted_at": deleted_at,
+        })
 
     def append_to_list(self, ticket_id: str, field: str, item: dict) -> dict | None:
         """Appends an entry to a list field on a ticket (e.g. triage_footprint, nudges)."""

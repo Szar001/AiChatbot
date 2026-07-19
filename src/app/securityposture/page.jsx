@@ -63,7 +63,7 @@ export default function SecurityPosturePage() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-[32px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
-              <ChartBarIcon className="w-7 h-7 text-blue-600" /> Security Posture Scoreboard
+              <ChartBarIcon className="w-7 h-7 text-blue-600" /> Compliance Scoreboard
             </h1>
             <p className="text-slate-500 text-lg mt-1">Rolled-up view of open risk, SLA health, and playbook status</p>
           </div>

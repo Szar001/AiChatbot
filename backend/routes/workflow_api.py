@@ -78,16 +78,8 @@ def approve_resolution():
         "approved": True,
         "reviewer": reviewer,
         "pending_life_doc_email": email_draft,
+        "life_doc_updated": False,
     })
-
-    life_doc_store = get_life_doc_store(current_app.config["LIFE_DOC_DB_PATH"])
-    record = life_doc_store.append_resolution(
-        ticket_id=ticket_id,
-        resolution_text=resolution_text,
-        ticket_title=ticket.get("clean_text", "")[:120],
-        category=ticket.get("category", ""),
-        reviewer=reviewer,
-    )
 
     if ticket.get("category") in ACTIVE_THREAT_CATEGORIES:
         playbook_store = get_exploit_playbook_store(current_app.config["EXPLOIT_PLAYBOOK_DB_PATH"])
@@ -109,7 +101,61 @@ def approve_resolution():
         summary=f"Resolved ticket {ticket_id} ({ticket.get('category', 'Unclassified')})",
     )
 
-    return jsonify({"life_document": record, "pending_life_doc_email": email_draft}), 201
+    # Approving a resolution does NOT yet write the Life Document — that is a
+    # distinct, separately-audited step performed via update-life-doc below.
+    return jsonify({
+        "approved_resolution": {
+            "ticket_id": ticket_id,
+            "resolution_text": resolution_text,
+            "reviewer": reviewer,
+        },
+        "pending_life_doc_email": email_draft,
+    }), 201
+
+
+@workflow_bp.route("/tickets/<ticket_id>/update-life-doc", methods=["POST"])
+@roles_required(*PRACTITIONER_AND_CISO)
+def update_life_doc(ticket_id):
+    """
+    Writes the approved resolution into the Life Document knowledge base.
+    Kept as a distinct action (and audit event) from /approve-resolution so
+    the two steps have separate audit trails, per the workflow requirement
+    that approval and Life Document updates are not combined.
+    """
+    ticket_store = get_ticket_store(current_app.config["TICKET_STORE_PATH"])
+    ticket = ticket_store.get(ticket_id)
+    if ticket is None:
+        return jsonify({"error": f"Ticket {ticket_id} not found."}), 404
+    if not ticket.get("approved") or not ticket.get("resolution_text"):
+        return jsonify({"error": "This ticket's resolution has not been approved yet."}), 400
+    if ticket.get("life_doc_updated"):
+        return jsonify({"error": "The Life Document has already been updated for this ticket."}), 400
+
+    user = request.current_user
+    if user["role"] in PRACTITIONER_ROLES and CATEGORY_TO_ROLE.get(ticket.get("category")) != user["role"]:
+        return jsonify({"error": "This ticket belongs to a different team."}), 403
+
+    life_doc_store = get_life_doc_store(current_app.config["LIFE_DOC_DB_PATH"])
+    record = life_doc_store.append_resolution(
+        ticket_id=ticket_id,
+        resolution_text=ticket["resolution_text"],
+        ticket_title=ticket.get("clean_text", "")[:120],
+        category=ticket.get("category", ""),
+        reviewer=ticket.get("reviewer", user["name"]),
+    )
+
+    ticket_store.update(ticket_id, {"life_doc_updated": True})
+
+    audit_log = get_audit_log_store(current_app.config["AUDIT_LOG_DB_PATH"])
+    audit_log.record(
+        actor=user,
+        action_type="life_document_updated",
+        category=ticket.get("category"),
+        ticket_id=ticket_id,
+        summary=f"Updated Life Document for {ticket_id} ({ticket.get('category', 'Unclassified')})",
+    )
+
+    return jsonify({"life_document": record}), 201
 
 
 @workflow_bp.route("/tickets/<ticket_id>/send-life-doc-email", methods=["POST"])

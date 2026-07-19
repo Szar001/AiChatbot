@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import HeaderTabs from '../components/HeaderTabs';
 import { authFetch, useAuthGuard } from '../../lib/auth';
 import { useSpeechToText } from '../../lib/speech';
+import { formatUtcPlus1 } from '../../lib/time';
 
 /**
  * Live countdown to the budget's expiry date. Ticks every second while the
@@ -183,6 +184,9 @@ export default function ServiceDeskDashboard() {
       }
       setVendorData((prev) => ({ ...(prev || {}), budget: data.budget }));
       setShowBudgetForm(false);
+      // Adding/editing the budget can change which licenses are affordable/active,
+      // so refresh the full vendor list to keep the License Cards in sync.
+      fetchVendors();
     } catch (err) {
       setBudgetError(err.message);
     } finally {
@@ -447,7 +451,7 @@ export default function ServiceDeskDashboard() {
                   <div className="space-y-1">
                     {ticket.nudges.map((nudge, idx) => (
                       <p key={idx} className="text-[11px] text-slate-400">
-                        🔔 {nudge.message} — {nudge.by}, {new Date(nudge.timestamp).toLocaleTimeString()}
+                        🔔 {nudge.message} — {nudge.by}, {formatUtcPlus1(nudge.timestamp)}
                       </p>
                     ))}
                   </div>
@@ -539,32 +543,32 @@ export default function ServiceDeskDashboard() {
               {showBudgetForm && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total Budget ($)</label>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Total Budget ($)</label>
                     <input
                       type="number"
                       value={budgetForm.total}
                       onChange={(e) => setBudgetForm((p) => ({ ...p, total: e.target.value }))}
                       placeholder="200000"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Amount Spent ($)</label>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Amount Spent ($)</label>
                     <input
                       type="number"
                       value={budgetForm.spent}
                       onChange={(e) => setBudgetForm((p) => ({ ...p, spent: e.target.value }))}
                       placeholder="124500"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Budget Expiry Date</label>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Budget Expiry Date</label>
                     <input
                       type="date"
                       value={budgetForm.expiry_date}
                       onChange={(e) => setBudgetForm((p) => ({ ...p, expiry_date: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   {budgetError && <p className="text-red-600 text-xs font-semibold">{budgetError}</p>}
@@ -832,27 +836,27 @@ export default function ServiceDeskDashboard() {
                     value={licenseForm.name}
                     onChange={(e) => setLicenseForm((p) => ({ ...p, name: e.target.value }))}
                     placeholder="License name (e.g. EDR Solution)"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400"
                   />
                   <input
                     type="text"
                     value={licenseForm.vendor_name}
                     onChange={(e) => setLicenseForm((p) => ({ ...p, vendor_name: e.target.value }))}
                     placeholder="Vendor name"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400"
                   />
                   <input
                     type="date"
                     value={licenseForm.expiry_date}
                     onChange={(e) => setLicenseForm((p) => ({ ...p, expiry_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400"
                   />
                   <input
                     type="number"
                     value={licenseForm.annual_cost}
                     onChange={(e) => setLicenseForm((p) => ({ ...p, annual_cost: e.target.value }))}
                     placeholder="Annual cost ($)"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 placeholder-slate-400"
                   />
                   {licenseError && <p className="text-red-600 text-xs font-semibold">{licenseError}</p>}
                   <button
@@ -938,7 +942,7 @@ export default function ServiceDeskDashboard() {
                     <div key={doc.id} className="border border-slate-100 rounded-lg p-3 text-xs bg-slate-50/50">
                       <p className="font-bold text-slate-800">{doc.reviewer}</p>
                       <p className="text-slate-500 mt-0.5">{doc.resolution_text}</p>
-                      <p className="text-slate-400 mt-1">{doc.ticket_id} • {new Date(doc.approved_at).toLocaleString()}</p>
+                      <p className="text-slate-400 mt-1">{doc.ticket_id} • {formatUtcPlus1(doc.approved_at)}</p>
                     </div>
                   ))}
                 </div>

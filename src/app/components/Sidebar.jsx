@@ -17,7 +17,7 @@ import {
   CalendarDaysIcon,
   AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
-import { getUser, clearSession, ROLE_LABELS } from "../../lib/auth";
+import { getUser, clearSession, ROLE_LABELS, PAGE_ACCESS } from "../../lib/auth";
 
 const NAV_ITEMS = [
   { href: "/", label: "AI Chat", icon: HomeIcon },
@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { href: "/servicedesk", label: "Service Desk", icon: UserCircleIcon },
   { href: "/grcmanagement", label: "GRC Management", icon: Cog6ToothIcon },
   { href: "/grcquery", label: "GRC Query", icon: Cog6ToothIcon },
-  { href: "/securityposture", label: "Security Posture", icon: ChartBarIcon },
+  { href: "/securityposture", label: "Compliance Scoreboard", icon: ChartBarIcon },
   { href: "/exploitplaybook", label: "Exploit Playbook", icon: BookOpenIcon },
   { href: "/pentestscheduler", label: "Pentest Scheduler", icon: CalendarDaysIcon },
   { href: "/slaconfig", label: "SLA Config", icon: AdjustmentsHorizontalIcon },
@@ -88,7 +88,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
         {/* Navigation */}
         <nav className="mt-6 flex-1 min-h-0 overflow-y-auto px-4 space-y-2 custom-scrollbar">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter(
+            (item) => !user || !PAGE_ACCESS[item.href] || PAGE_ACCESS[item.href].includes(user.role)
+          ).map((item) => (
             <Link
               key={item.href}
               href={item.href}
